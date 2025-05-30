@@ -1,6 +1,6 @@
 # Box Dimension Visualizer
 
-A simple 3D tool to visualize custom camera bag dimensions with DSLR scale reference.
+A simple 3D tool to visualize custom camera bag dimensions with adjustable DSLR scale reference.
 
 ## Live Demo
 
@@ -9,13 +9,14 @@ A simple 3D tool to visualize custom camera bag dimensions with DSLR scale refer
 ## What it does
 
 - Interactive 3D box with adjustable dimensions (length, height, width)
-- Canon EOS Rebel T7 camera scale reference that fits inside the box
+- Adjustable camera reference with customizable dimensions
+- Canon EOS Rebel T7 preset for quick reference
 - Real-time visualization as you adjust sliders
 - Mouse controls to rotate and zoom
 
 ## Use Case
 
-Perfect for sizing custom camera bags before ordering. Visualize exactly how your DSLR will fit inside your custom bag dimensions.
+Perfect for sizing custom camera bags before ordering. Visualize exactly how your DSLR will fit inside your custom bag dimensions. Works for any camera model by adjusting the reference dimensions.
 
 ## Built With
 
@@ -25,8 +26,10 @@ Perfect for sizing custom camera bags before ordering. Visualize exactly how you
 
 ## Controls
 
-- **Sliders**: Adjust box dimensions (1-15 inches)
-- **Checkbox**: Toggle Canon T7 camera reference
+- **Box Sliders**: Adjust box dimensions (1-15 inches)
+- **Camera Checkbox**: Toggle camera reference on/off
+- **Camera Sliders**: Adjust camera dimensions when enabled
+- **Reset Button**: Restore Canon T7 dimensions (5.08" × 3.99" × 3.06")
 - **Mouse**: Click and drag to rotate, scroll to zoom
 
 ## Features
@@ -35,6 +38,9 @@ Perfect for sizing custom camera bags before ordering. Visualize exactly how you
 - Real-time dimension updates
 - Semi-transparent box to see camera inside
 - Automatic rotation animation
+- Adjustable camera dimensions for any DSLR model
+- One-click reset to Canon T7 reference
 
 ## License
+
 This project is licensed under the terms of the GNU General Public License v3.0.
