@@ -42,7 +42,7 @@
         
         .controls {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -94,9 +94,15 @@
             border: none;
         }
         
+        .checkbox-row {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+        
         .checkbox-control {
             text-align: center;
-            margin-bottom: 20px;
         }
         
         .checkbox-control input[type="checkbox"] {
@@ -161,6 +167,60 @@
             background: #5a6268;
         }
         
+        .clearance-measurements {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .clearance-measurements h3 {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+        
+        .clearance-item {
+            text-align: center;
+        }
+        
+        .clearance-item label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 0.9em;
+        }
+        
+        .clearance-value {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .clearance-positive {
+            background: #28a745;
+        }
+        
+        .clearance-negative {
+            background: #dc3545;
+        }
+        
+        .clearance-zero {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+
+        
         .instructions {
             text-align: center;
             color: #666;
@@ -178,25 +238,43 @@
             <div class="control-group">
                 <label>Length</label>
                 <div class="value-display" id="length-value">7.00"</div>
-                <input type="range" class="slider" id="length-slider" min="1" max="15" step="0.1" value="7.0">
+                <input type="range" class="slider" id="length-slider" min="1" max="15" step="0.01" value="7.0">
             </div>
             
             <div class="control-group">
                 <label>Height</label>
                 <div class="value-display" id="height-value">5.30"</div>
-                <input type="range" class="slider" id="height-slider" min="1" max="15" step="0.1" value="5.3">
+                <input type="range" class="slider" id="height-slider" min="1" max="15" step="0.01" value="5.3">
             </div>
             
             <div class="control-group">
                 <label>Width</label>
                 <div class="value-display" id="width-value">5.30"</div>
-                <input type="range" class="slider" id="width-slider" min="1" max="15" step="0.1" value="5.3">
+                <input type="range" class="slider" id="width-slider" min="1" max="15" step="0.01" value="5.3">
+            </div>
+            
+            <div class="control-group">
+                <label>Thickness</label>
+                <div class="value-display" id="thickness-value">0.25"</div>
+                <input type="range" class="slider" id="thickness-slider" min="0" max="2.0" step="0.01" value="0.25">
             </div>
         </div>
         
-        <div class="checkbox-control">
-            <input type="checkbox" id="show-camera">
-            <label for="show-camera">Show Camera Reference</label>
+        <div class="checkbox-row">
+            <div class="checkbox-control">
+                <input type="checkbox" id="show-camera">
+                <label for="show-camera">Show Camera Reference</label>
+            </div>
+            
+            <div class="checkbox-control">
+                <input type="checkbox" id="metric-units">
+                <label for="metric-units">Use Metric Units (cm)</label>
+            </div>
+        </div>
+        
+        <div class="checkbox-control" style="margin-bottom: 20px;">
+            <input type="checkbox" id="outer-dimensions" checked>
+            <label for="outer-dimensions">Box dimensions are OUTER measurements (thickness goes inward)</label>
         </div>
         
         <div class="camera-controls" id="camera-controls" style="display: none;">
@@ -223,6 +301,27 @@
             <button class="reset-camera-btn" id="reset-camera-btn">Reset to Canon EOS Rebel T7 (5.08" × 3.99" × 3.06")</button>
         </div>
         
+
+        
+        <div class="clearance-measurements" id="clearance-measurements" style="display: none;">
+            <h3>Clearance Measurements (Camera to Box Interior)</h3>
+            
+            <div class="clearance-item">
+                <label>Length Clearance</label>
+                <div class="clearance-value clearance-positive" id="length-clearance">+1.92"</div>
+            </div>
+            
+            <div class="clearance-item">
+                <label>Height Clearance</label>
+                <div class="clearance-value clearance-positive" id="height-clearance">+1.31"</div>
+            </div>
+            
+            <div class="clearance-item">
+                <label>Width Clearance</label>
+                <div class="clearance-value clearance-positive" id="width-clearance">+2.24"</div>
+            </div>
+        </div>
+        
         <div class="instructions">
             Drag the sliders to change dimensions • Click and drag to rotate • Scroll to zoom
         </div>
@@ -232,6 +331,9 @@
         let length = 7.0;
         let height = 5.3;
         let width = 5.3;
+        let thickness = 0.25;
+        let outerDimensions = true; // true = outer measurements, false = inner measurements
+        let useMetric = false; // true = cm, false = inches
         
         let cameraLength = 5.08;
         let cameraHeight = 3.99;
@@ -242,7 +344,112 @@
         const DEFAULT_CAMERA_HEIGHT = 3.99;
         const DEFAULT_CAMERA_WIDTH = 3.06;
         
-        let scene, camera, renderer, mainBox, cameraBox;
+        // Conversion functions
+        function inchesToCm(inches) {
+            return inches * 2.54;
+        }
+        
+        function cmToInches(cm) {
+            return cm / 2.54;
+        }
+        
+        function formatDimension(value) {
+            if (useMetric) {
+                return inchesToCm(value).toFixed(1) + ' cm';
+            } else {
+                return value.toFixed(2) + '"';
+            }
+        }
+        
+        function updateSliderRanges() {
+            const lengthSlider = document.getElementById('length-slider');
+            const heightSlider = document.getElementById('height-slider');
+            const widthSlider = document.getElementById('width-slider');
+            const thicknessSlider = document.getElementById('thickness-slider');
+            const cameraLengthSlider = document.getElementById('camera-length-slider');
+            const cameraHeightSlider = document.getElementById('camera-height-slider');
+            const cameraWidthSlider = document.getElementById('camera-width-slider');
+            
+            if (useMetric) {
+                // Convert ranges to cm
+                lengthSlider.min = inchesToCm(1).toFixed(1);
+                lengthSlider.max = inchesToCm(15).toFixed(1);
+                lengthSlider.step = "0.1";
+                
+                heightSlider.min = inchesToCm(1).toFixed(1);
+                heightSlider.max = inchesToCm(15).toFixed(1);
+                heightSlider.step = "0.1";
+                
+                widthSlider.min = inchesToCm(1).toFixed(1);
+                widthSlider.max = inchesToCm(15).toFixed(1);
+                widthSlider.step = "0.1";
+                
+                thicknessSlider.min = "0";
+                thicknessSlider.max = inchesToCm(2).toFixed(1);
+                thicknessSlider.step = "0.1";
+                
+                cameraLengthSlider.min = inchesToCm(1).toFixed(1);
+                cameraLengthSlider.max = inchesToCm(10).toFixed(1);
+                cameraLengthSlider.step = "0.1";
+                
+                cameraHeightSlider.min = inchesToCm(1).toFixed(1);
+                cameraHeightSlider.max = inchesToCm(8).toFixed(1);
+                cameraHeightSlider.step = "0.1";
+                
+                cameraWidthSlider.min = inchesToCm(1).toFixed(1);
+                cameraWidthSlider.max = inchesToCm(8).toFixed(1);
+                cameraWidthSlider.step = "0.1";
+                
+                // Update slider values
+                lengthSlider.value = inchesToCm(length).toFixed(1);
+                heightSlider.value = inchesToCm(height).toFixed(1);
+                widthSlider.value = inchesToCm(width).toFixed(1);
+                thicknessSlider.value = inchesToCm(thickness).toFixed(1);
+                cameraLengthSlider.value = inchesToCm(cameraLength).toFixed(1);
+                cameraHeightSlider.value = inchesToCm(cameraHeight).toFixed(1);
+                cameraWidthSlider.value = inchesToCm(cameraWidth).toFixed(1);
+            } else {
+                // Set ranges back to inches
+                lengthSlider.min = "1";
+                lengthSlider.max = "15";
+                lengthSlider.step = "0.01";
+                
+                heightSlider.min = "1";
+                heightSlider.max = "15";
+                heightSlider.step = "0.01";
+                
+                widthSlider.min = "1";
+                widthSlider.max = "15";
+                widthSlider.step = "0.01";
+                
+                thicknessSlider.min = "0";
+                thicknessSlider.max = "2";
+                thicknessSlider.step = "0.01";
+                
+                cameraLengthSlider.min = "1";
+                cameraLengthSlider.max = "10";
+                cameraLengthSlider.step = "0.01";
+                
+                cameraHeightSlider.min = "1";
+                cameraHeightSlider.max = "8";
+                cameraHeightSlider.step = "0.01";
+                
+                cameraWidthSlider.min = "1";
+                cameraWidthSlider.max = "8";
+                cameraWidthSlider.step = "0.01";
+                
+                // Update slider values
+                lengthSlider.value = length.toFixed(2);
+                heightSlider.value = height.toFixed(2);
+                widthSlider.value = width.toFixed(2);
+                thicknessSlider.value = thickness.toFixed(2);
+                cameraLengthSlider.value = cameraLength.toFixed(2);
+                cameraHeightSlider.value = cameraHeight.toFixed(2);
+                cameraWidthSlider.value = cameraWidth.toFixed(2);
+            }
+        }
+        
+        let scene, camera, renderer, innerBox, outerBox, cameraBox;
         let mouseDown = false;
         let mouseX = 0, mouseY = 0;
 
@@ -281,32 +488,161 @@
             animate();
         }
 
-        function createMainBox() {
-            if (mainBox) {
-                scene.remove(mainBox);
+        function calculateInnerDimensions() {
+            let innerLength, innerHeight, innerWidth;
+            
+            if (thickness === 0) {
+                innerLength = length;
+                innerHeight = height;
+                innerWidth = width;
+            } else {
+                if (outerDimensions) {
+                    innerLength = length - (thickness * 2);
+                    innerHeight = height - (thickness * 2);
+                    innerWidth = width - (thickness * 2);
+                } else {
+                    innerLength = length;
+                    innerHeight = height;
+                    innerWidth = width;
+                }
             }
             
-            const geometry = new THREE.BoxGeometry(length, height, width);
-            const material = new THREE.MeshLambertMaterial({ 
-                color: 0x8B4513,
-                transparent: true,
-                opacity: 0.6
-            });
-            mainBox = new THREE.Mesh(geometry, material);
+            return { innerLength, innerHeight, innerWidth };
+        }
+
+        function updateClearanceMeasurements() {
+            const showCameraCheckbox = document.getElementById('show-camera');
+            const clearanceDiv = document.getElementById('clearance-measurements');
             
-            // Add wireframe edges
-            const edges = new THREE.EdgesGeometry(geometry);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-            const wireframe = new THREE.LineSegments(edges, lineMaterial);
-            mainBox.add(wireframe);
+            if (!showCameraCheckbox.checked) {
+                clearanceDiv.style.display = 'none';
+                return;
+            }
             
-            scene.add(mainBox);
+            const { innerLength, innerHeight, innerWidth } = calculateInnerDimensions();
+            
+            // Calculate clearances (how much space is left)
+            const lengthClearance = innerLength - cameraLength;
+            const heightClearance = innerHeight - cameraHeight;
+            const widthClearance = innerWidth - cameraWidth;
+            
+            // Update clearance displays
+            updateClearanceDisplay('length-clearance', lengthClearance);
+            updateClearanceDisplay('height-clearance', heightClearance);
+            updateClearanceDisplay('width-clearance', widthClearance);
+            
+            clearanceDiv.style.display = 'grid';
+        }
+
+        function updateClearanceDisplay(elementId, clearance) {
+            const element = document.getElementById(elementId);
+            const absValue = Math.abs(clearance);
+            
+            if (clearance > 0.1) {
+                element.textContent = `+${formatDimension(clearance)}`;
+                element.className = 'clearance-value clearance-positive';
+            } else if (clearance < -0.01) {
+                element.textContent = `-${formatDimension(absValue)}`;
+                element.className = 'clearance-value clearance-negative';
+            } else {
+                element.textContent = formatDimension(clearance);
+                element.className = 'clearance-value clearance-zero';
+            }
+        }
+
+
+
+        function createMainBox() {
+            if (innerBox) {
+                scene.remove(innerBox);
+            }
+            if (outerBox) {
+                scene.remove(outerBox);
+            }
+            
+            if (thickness === 0) {
+                // No thickness - create simple hollow box
+                const geometry = new THREE.BoxGeometry(length, height, width);
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: 0x8B4513,
+                    transparent: true,
+                    opacity: 0.15
+                });
+                innerBox = new THREE.Mesh(geometry, material);
+                
+                // Add wireframe edges
+                const edges = new THREE.EdgesGeometry(geometry);
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+                const wireframe = new THREE.LineSegments(edges, lineMaterial);
+                innerBox.add(wireframe);
+                
+                scene.add(innerBox);
+            } else {
+                // Calculate inner and outer dimensions based on mode
+                let innerLength, innerHeight, innerWidth;
+                let outerLength, outerHeight, outerWidth;
+                
+                if (outerDimensions) {
+                    // Slider values are outer dimensions
+                    outerLength = length;
+                    outerHeight = height;
+                    outerWidth = width;
+                    innerLength = length - (thickness * 2);
+                    innerHeight = height - (thickness * 2);
+                    innerWidth = width - (thickness * 2);
+                } else {
+                    // Slider values are inner dimensions
+                    innerLength = length;
+                    innerHeight = height;
+                    innerWidth = width;
+                    outerLength = length + (thickness * 2);
+                    outerHeight = height + (thickness * 2);
+                    outerWidth = width + (thickness * 2);
+                }
+                
+                // Create outer box
+                const outerGeometry = new THREE.BoxGeometry(outerLength, outerHeight, outerWidth);
+                const outerMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x8B4513,
+                    transparent: true,
+                    opacity: 0.15
+                });
+                outerBox = new THREE.Mesh(outerGeometry, outerMaterial);
+                
+                // Add wireframe edges for outer box
+                const outerEdges = new THREE.EdgesGeometry(outerGeometry);
+                const outerLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+                const outerWireframe = new THREE.LineSegments(outerEdges, outerLineMaterial);
+                outerBox.add(outerWireframe);
+                
+                scene.add(outerBox);
+                
+                // Create inner box (usable space)
+                const innerGeometry = new THREE.BoxGeometry(innerLength, innerHeight, innerWidth);
+                const innerMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x8B4513,
+                    transparent: true,
+                    opacity: 0.05
+                });
+                innerBox = new THREE.Mesh(innerGeometry, innerMaterial);
+                
+                // Add wireframe edges for inner box
+                const innerEdges = new THREE.EdgesGeometry(innerGeometry);
+                const innerLineMaterial = new THREE.LineBasicMaterial({ color: 0x666666, linewidth: 1 });
+                const innerWireframe = new THREE.LineSegments(innerEdges, innerLineMaterial);
+                innerBox.add(innerWireframe);
+                
+                scene.add(innerBox);
+            }
             
             // If camera is supposed to be shown, recreate it inside the new box
             const cameraCheckbox = document.getElementById('show-camera');
             if (cameraCheckbox && cameraCheckbox.checked) {
                 createCameraBox();
             }
+            
+            // Update clearance measurements
+            updateClearanceMeasurements();
         }
 
         function createCameraBox() {
@@ -319,35 +655,63 @@
                 }
             }
             
-            // Use adjustable camera dimensions
+            const { innerLength, innerHeight, innerWidth } = calculateInnerDimensions();
+            
+            // Check collisions for each face
+            const collisions = {
+                front: (cameraWidth/2) >= (innerWidth/2),
+                back: (cameraWidth/2) >= (innerWidth/2),
+                left: (cameraLength/2) >= (innerLength/2),
+                right: (cameraLength/2) >= (innerLength/2),
+                top: (cameraHeight/2) >= (innerHeight/2),
+                bottom: (cameraHeight/2) >= (innerHeight/2)
+            };
+            
+            // Create camera with individual face materials
             const cameraGeometry = new THREE.BoxGeometry(cameraLength, cameraHeight, cameraWidth);
-            const cameraMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x000000
-            });
-            cameraBox = new THREE.Mesh(cameraGeometry, cameraMaterial);
+            
+            // Create materials for each face
+            const normalMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+            const collisionMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            
+            // Array of materials for each face: [right, left, top, bottom, front, back]
+            const materials = [
+                collisions.right ? collisionMaterial : normalMaterial,  // right
+                collisions.left ? collisionMaterial : normalMaterial,   // left
+                collisions.top ? collisionMaterial : normalMaterial,    // top
+                collisions.bottom ? collisionMaterial : normalMaterial, // bottom
+                collisions.front ? collisionMaterial : normalMaterial,  // front
+                collisions.back ? collisionMaterial : normalMaterial    // back
+            ];
+            
+            cameraBox = new THREE.Mesh(cameraGeometry, materials);
             
             // Add wireframe edges
             const edges = new THREE.EdgesGeometry(cameraGeometry);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
             const wireframe = new THREE.LineSegments(edges, lineMaterial);
             cameraBox.add(wireframe);
             
             // Position at center (relative to parent)
             cameraBox.position.set(0, 0, 0);
             
-            // Add camera as child of main box so they rotate together
-            mainBox.add(cameraBox);
+            // Add camera as child of inner box so they rotate together
+            innerBox.add(cameraBox);
+            
+            // Update clearance measurements
+            updateClearanceMeasurements();
         }
 
         function updateDimensions() {
-            document.getElementById('length-value').textContent = length.toFixed(2) + '"';
-            document.getElementById('height-value').textContent = height.toFixed(2) + '"';
-            document.getElementById('width-value').textContent = width.toFixed(2) + '"';
+            document.getElementById('length-value').textContent = formatDimension(length);
+            document.getElementById('height-value').textContent = formatDimension(height);
+            document.getElementById('width-value').textContent = formatDimension(width);
+            document.getElementById('thickness-value').textContent = formatDimension(thickness);
             
             // Update camera dimensions
-            document.getElementById('camera-length-value').textContent = cameraLength.toFixed(2) + '"';
-            document.getElementById('camera-height-value').textContent = cameraHeight.toFixed(2) + '"';
-            document.getElementById('camera-width-value').textContent = cameraWidth.toFixed(2) + '"';
+            document.getElementById('camera-length-value').textContent = formatDimension(cameraLength);
+            document.getElementById('camera-height-value').textContent = formatDimension(cameraHeight);
+            document.getElementById('camera-width-value').textContent = formatDimension(cameraWidth);
         }
 
         function setupControls() {
@@ -355,21 +719,57 @@
             
             // Sliders
             document.getElementById('length-slider').addEventListener('input', (e) => {
-                length = parseFloat(e.target.value);
+                if (useMetric) {
+                    length = cmToInches(parseFloat(e.target.value));
+                } else {
+                    length = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 createMainBox();
             });
             
             document.getElementById('height-slider').addEventListener('input', (e) => {
-                height = parseFloat(e.target.value);
+                if (useMetric) {
+                    height = cmToInches(parseFloat(e.target.value));
+                } else {
+                    height = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 createMainBox();
             });
             
             document.getElementById('width-slider').addEventListener('input', (e) => {
-                width = parseFloat(e.target.value);
+                if (useMetric) {
+                    width = cmToInches(parseFloat(e.target.value));
+                } else {
+                    width = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 createMainBox();
+            });
+            
+            document.getElementById('thickness-slider').addEventListener('input', (e) => {
+                if (useMetric) {
+                    thickness = cmToInches(parseFloat(e.target.value));
+                } else {
+                    thickness = parseFloat(e.target.value);
+                }
+                updateDimensions();
+                createMainBox();
+            });
+            
+            // Outer/Inner dimensions checkbox
+            document.getElementById('outer-dimensions').addEventListener('change', (e) => {
+                outerDimensions = e.target.checked;
+                createMainBox();
+            });
+            
+            // Metric/Imperial toggle
+            document.getElementById('metric-units').addEventListener('change', (e) => {
+                useMetric = e.target.checked;
+                updateSliderRanges();
+                updateDimensions();
+                updateClearanceMeasurements();
             });
             
             // Camera checkbox
@@ -389,23 +789,36 @@
                     }
                     cameraControls.style.display = 'none';
                 }
+                updateClearanceMeasurements();
             });
             
             // Camera dimension sliders
             document.getElementById('camera-length-slider').addEventListener('input', (e) => {
-                cameraLength = parseFloat(e.target.value);
+                if (useMetric) {
+                    cameraLength = cmToInches(parseFloat(e.target.value));
+                } else {
+                    cameraLength = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 if (cameraBox) createCameraBox();
             });
             
             document.getElementById('camera-height-slider').addEventListener('input', (e) => {
-                cameraHeight = parseFloat(e.target.value);
+                if (useMetric) {
+                    cameraHeight = cmToInches(parseFloat(e.target.value));
+                } else {
+                    cameraHeight = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 if (cameraBox) createCameraBox();
             });
             
             document.getElementById('camera-width-slider').addEventListener('input', (e) => {
-                cameraWidth = parseFloat(e.target.value);
+                if (useMetric) {
+                    cameraWidth = cmToInches(parseFloat(e.target.value));
+                } else {
+                    cameraWidth = parseFloat(e.target.value);
+                }
                 updateDimensions();
                 if (cameraBox) createCameraBox();
             });
@@ -443,9 +856,14 @@
                 const deltaX = e.clientX - mouseX;
                 const deltaY = e.clientY - mouseY;
                 
-                if (mainBox) {
-                    mainBox.rotation.y += deltaX * 0.01;
-                    mainBox.rotation.x += deltaY * 0.01;
+                if (innerBox) {
+                    innerBox.rotation.y += deltaX * 0.01;
+                    innerBox.rotation.x += deltaY * 0.01;
+                }
+                
+                if (outerBox) {
+                    outerBox.rotation.y += deltaX * 0.01;
+                    outerBox.rotation.x += deltaY * 0.01;
                 }
                 
                 mouseX = e.clientX;
@@ -462,8 +880,11 @@
             requestAnimationFrame(animate);
             
             if (!mouseDown) {
-                if (mainBox) {
-                    mainBox.rotation.y += 0.005;
+                if (innerBox) {
+                    innerBox.rotation.y += 0.005;
+                }
+                if (outerBox) {
+                    outerBox.rotation.y += 0.005;
                 }
             }
             
