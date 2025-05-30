@@ -109,6 +109,58 @@
             color: #555;
         }
         
+        .camera-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .camera-controls h3 {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+        
+        .camera-controls .control-group {
+            text-align: center;
+        }
+        
+        .camera-controls .value-display {
+            background: #28a745;
+        }
+        
+        .camera-controls .slider::-webkit-slider-thumb {
+            background: #28a745;
+        }
+        
+        .camera-controls .slider::-moz-range-thumb {
+            background: #28a745;
+        }
+        
+        .reset-camera-btn {
+            grid-column: 1 / -1;
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        
+        .reset-camera-btn:hover {
+            background: #5a6268;
+        }
+        
         .instructions {
             text-align: center;
             color: #666;
@@ -144,7 +196,31 @@
         
         <div class="checkbox-control">
             <input type="checkbox" id="show-camera">
-            <label for="show-camera">Show Canon EOS Rebel T7 Camera (5.08" × 3.99" × 3.06")</label>
+            <label for="show-camera">Show Camera Reference</label>
+        </div>
+        
+        <div class="camera-controls" id="camera-controls" style="display: none;">
+            <h3>Camera Dimensions</h3>
+            
+            <div class="control-group">
+                <label>Camera Length</label>
+                <div class="value-display" id="camera-length-value">5.08"</div>
+                <input type="range" class="slider" id="camera-length-slider" min="1" max="10" step="0.01" value="5.08">
+            </div>
+            
+            <div class="control-group">
+                <label>Camera Height</label>
+                <div class="value-display" id="camera-height-value">3.99"</div>
+                <input type="range" class="slider" id="camera-height-slider" min="1" max="8" step="0.01" value="3.99">
+            </div>
+            
+            <div class="control-group">
+                <label>Camera Width</label>
+                <div class="value-display" id="camera-width-value">3.06"</div>
+                <input type="range" class="slider" id="camera-width-slider" min="1" max="8" step="0.01" value="3.06">
+            </div>
+            
+            <button class="reset-camera-btn" id="reset-camera-btn">Reset to Canon EOS Rebel T7 (5.08" × 3.99" × 3.06")</button>
         </div>
         
         <div class="instructions">
@@ -156,6 +232,15 @@
         let length = 7.0;
         let height = 5.3;
         let width = 5.3;
+        
+        let cameraLength = 5.08;
+        let cameraHeight = 3.99;
+        let cameraWidth = 3.06;
+        
+        // Default camera dimensions
+        const DEFAULT_CAMERA_LENGTH = 5.08;
+        const DEFAULT_CAMERA_HEIGHT = 3.99;
+        const DEFAULT_CAMERA_WIDTH = 3.06;
         
         let scene, camera, renderer, mainBox, cameraBox;
         let mouseDown = false;
@@ -234,8 +319,8 @@
                 }
             }
             
-            // Camera dimensions: 5.08" × 3.99" × 3.06"
-            const cameraGeometry = new THREE.BoxGeometry(5.08, 3.99, 3.06);
+            // Use adjustable camera dimensions
+            const cameraGeometry = new THREE.BoxGeometry(cameraLength, cameraHeight, cameraWidth);
             const cameraMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x000000
             });
@@ -258,6 +343,11 @@
             document.getElementById('length-value').textContent = length.toFixed(2) + '"';
             document.getElementById('height-value').textContent = height.toFixed(2) + '"';
             document.getElementById('width-value').textContent = width.toFixed(2) + '"';
+            
+            // Update camera dimensions
+            document.getElementById('camera-length-value').textContent = cameraLength.toFixed(2) + '"';
+            document.getElementById('camera-height-value').textContent = cameraHeight.toFixed(2) + '"';
+            document.getElementById('camera-width-value').textContent = cameraWidth.toFixed(2) + '"';
         }
 
         function setupControls() {
@@ -284,8 +374,10 @@
             
             // Camera checkbox
             document.getElementById('show-camera').addEventListener('change', (e) => {
+                const cameraControls = document.getElementById('camera-controls');
                 if (e.target.checked) {
                     createCameraBox();
+                    cameraControls.style.display = 'grid';
                 } else {
                     if (cameraBox) {
                         if (cameraBox.parent) {
@@ -295,7 +387,43 @@
                         }
                         cameraBox = null;
                     }
+                    cameraControls.style.display = 'none';
                 }
+            });
+            
+            // Camera dimension sliders
+            document.getElementById('camera-length-slider').addEventListener('input', (e) => {
+                cameraLength = parseFloat(e.target.value);
+                updateDimensions();
+                if (cameraBox) createCameraBox();
+            });
+            
+            document.getElementById('camera-height-slider').addEventListener('input', (e) => {
+                cameraHeight = parseFloat(e.target.value);
+                updateDimensions();
+                if (cameraBox) createCameraBox();
+            });
+            
+            document.getElementById('camera-width-slider').addEventListener('input', (e) => {
+                cameraWidth = parseFloat(e.target.value);
+                updateDimensions();
+                if (cameraBox) createCameraBox();
+            });
+            
+            // Reset camera button
+            document.getElementById('reset-camera-btn').addEventListener('click', () => {
+                cameraLength = DEFAULT_CAMERA_LENGTH;
+                cameraHeight = DEFAULT_CAMERA_HEIGHT;
+                cameraWidth = DEFAULT_CAMERA_WIDTH;
+                
+                // Update sliders
+                document.getElementById('camera-length-slider').value = DEFAULT_CAMERA_LENGTH;
+                document.getElementById('camera-height-slider').value = DEFAULT_CAMERA_HEIGHT;
+                document.getElementById('camera-width-slider').value = DEFAULT_CAMERA_WIDTH;
+                
+                // Update displays and recreate camera
+                updateDimensions();
+                if (cameraBox) createCameraBox();
             });
             
             // Mouse controls
