@@ -38,7 +38,3 @@ Perfect for sizing custom camera bags before ordering. Visualize exactly how you
 
 ## License
 This project is licensed under the terms of the GNU General Public License v3.0.
-
----
-
-*Built to solve the "will my camera fit?" problem when ordering custom bags.*
