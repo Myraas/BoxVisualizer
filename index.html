@@ -267,14 +267,26 @@
             </div>
             
             <div class="checkbox-control">
-                <input type="checkbox" id="metric-units">
-                <label for="metric-units">Use Metric Units (cm)</label>
+                <input type="checkbox" id="show-lens">
+                <label for="show-lens">Add Lens Attachment</label>
             </div>
         </div>
         
         <div class="checkbox-control" style="margin-bottom: 20px;">
             <input type="checkbox" id="outer-dimensions" checked>
             <label for="outer-dimensions">Box dimensions are OUTER measurements (thickness goes inward)</label>
+        </div>
+        
+        <div class="checkbox-row">
+            <div class="checkbox-control">
+                <input type="checkbox" id="metric-units">
+                <label for="metric-units">Use Metric Units (cm)</label>
+            </div>
+            
+            <div class="checkbox-control">
+                <input type="checkbox" id="pause-movement">
+                <label for="pause-movement">Pause Movement</label>
+            </div>
         </div>
         
         <div class="camera-controls" id="camera-controls" style="display: none;">
@@ -296,6 +308,17 @@
                 <label>Camera Width</label>
                 <div class="value-display" id="camera-width-value">3.06"</div>
                 <input type="range" class="slider" id="camera-width-slider" min="1" max="8" step="0.01" value="3.06">
+            </div>
+            
+            <div class="control-group" id="lens-control-group" style="display: none;">
+                <label>Lens Length</label>
+                <div class="value-display" id="lens-length-value">0.00"</div>
+                <input type="range" class="slider" id="lens-length-slider" min="0" max="8" step="0.01" value="0">
+            </div>
+            
+            <div class="control-group" id="total-width-group" style="display: none;">
+                <label>Total Assembly Width</label>
+                <div class="value-display" id="total-width-value" style="background: #6f42c1;">3.06"</div>
             </div>
             
             <button class="reset-camera-btn" id="reset-camera-btn">Reset to Canon EOS Rebel T7 (5.08" × 3.99" × 3.06")</button>
@@ -320,6 +343,11 @@
                 <label>Width Clearance</label>
                 <div class="clearance-value clearance-positive" id="width-clearance">+2.24"</div>
             </div>
+            
+            <div class="clearance-item" id="lens-clearance-item" style="display: none;">
+                <label>Lens Clearance</label>
+                <div class="clearance-value clearance-positive" id="lens-clearance">+1.92"</div>
+            </div>
         </div>
         
         <div class="instructions">
@@ -338,6 +366,9 @@
         let cameraLength = 5.08;
         let cameraHeight = 3.99;
         let cameraWidth = 3.06;
+        let lensLength = 0;
+        let showLens = false;
+        let pauseMovement = false;
         
         // Default camera dimensions
         const DEFAULT_CAMERA_LENGTH = 5.08;
@@ -351,6 +382,15 @@
         
         function cmToInches(cm) {
             return cm / 2.54;
+        }
+        
+        function updateResetButtonText() {
+            const resetButton = document.getElementById('reset-camera-btn');
+            if (useMetric) {
+                resetButton.textContent = 'Reset to Canon EOS Rebel T7 (12.9 cm × 10.1 cm × 7.8 cm)';
+            } else {
+                resetButton.textContent = 'Reset to Canon EOS Rebel T7 (5.08" × 3.99" × 3.06")';
+            }
         }
         
         function formatDimension(value) {
@@ -400,6 +440,12 @@
                 cameraWidthSlider.max = inchesToCm(8).toFixed(1);
                 cameraWidthSlider.step = "0.1";
                 
+                // Lens slider
+                const lensLengthSlider = document.getElementById('lens-length-slider');
+                lensLengthSlider.min = "0";
+                lensLengthSlider.max = inchesToCm(8).toFixed(1);
+                lensLengthSlider.step = "0.1";
+                
                 // Update slider values
                 lengthSlider.value = inchesToCm(length).toFixed(1);
                 heightSlider.value = inchesToCm(height).toFixed(1);
@@ -408,6 +454,7 @@
                 cameraLengthSlider.value = inchesToCm(cameraLength).toFixed(1);
                 cameraHeightSlider.value = inchesToCm(cameraHeight).toFixed(1);
                 cameraWidthSlider.value = inchesToCm(cameraWidth).toFixed(1);
+                lensLengthSlider.value = inchesToCm(lensLength).toFixed(1);
             } else {
                 // Set ranges back to inches
                 lengthSlider.min = "1";
@@ -438,6 +485,12 @@
                 cameraWidthSlider.max = "8";
                 cameraWidthSlider.step = "0.01";
                 
+                // Lens slider
+                const lensLengthSlider = document.getElementById('lens-length-slider');
+                lensLengthSlider.min = "0";
+                lensLengthSlider.max = "8";
+                lensLengthSlider.step = "0.01";
+                
                 // Update slider values
                 lengthSlider.value = length.toFixed(2);
                 heightSlider.value = height.toFixed(2);
@@ -446,10 +499,11 @@
                 cameraLengthSlider.value = cameraLength.toFixed(2);
                 cameraHeightSlider.value = cameraHeight.toFixed(2);
                 cameraWidthSlider.value = cameraWidth.toFixed(2);
+                lensLengthSlider.value = lensLength.toFixed(2);
             }
         }
         
-        let scene, camera, renderer, innerBox, outerBox, cameraBox;
+        let scene, camera, renderer, innerBox, outerBox, cameraBox, lensBox;
         let mouseDown = false;
         let mouseX = 0, mouseY = 0;
 
@@ -513,6 +567,7 @@
         function updateClearanceMeasurements() {
             const showCameraCheckbox = document.getElementById('show-camera');
             const clearanceDiv = document.getElementById('clearance-measurements');
+            const lenseClearanceItem = document.getElementById('lens-clearance-item');
             
             if (!showCameraCheckbox.checked) {
                 clearanceDiv.style.display = 'none';
@@ -524,12 +579,29 @@
             // Calculate clearances (how much space is left)
             const lengthClearance = innerLength - cameraLength;
             const heightClearance = innerHeight - cameraHeight;
-            const widthClearance = innerWidth - cameraWidth;
+            
+            // Camera width clearance - total assembly is centered, so clearance is symmetrical
+            const totalCameraWidth = cameraWidth + (showLens ? lensLength : 0);
+            const widthClearance = innerWidth - totalCameraWidth;
+            
+            // Calculate lens clearance - distance from lens tip to box wall
+            // With centered assembly, lens tip is at totalCameraWidth/2 from center
+            const lensTipPosition = totalCameraWidth/2;
+            const boxWallPosition = innerWidth/2;
+            const lensClearance = boxWallPosition - lensTipPosition;
             
             // Update clearance displays
             updateClearanceDisplay('length-clearance', lengthClearance);
             updateClearanceDisplay('height-clearance', heightClearance);
             updateClearanceDisplay('width-clearance', widthClearance);
+            
+            // Show/hide lens clearance based on lens visibility
+            if (showLens) {
+                updateClearanceDisplay('lens-clearance', lensClearance);
+                lenseClearanceItem.style.display = 'block';
+            } else {
+                lenseClearanceItem.style.display = 'none';
+            }
             
             clearanceDiv.style.display = 'grid';
         }
@@ -646,7 +718,7 @@
         }
 
         function createCameraBox() {
-            // Remove existing camera if it exists
+            // Remove existing camera and lens if they exist
             if (cameraBox) {
                 if (cameraBox.parent) {
                     cameraBox.parent.remove(cameraBox);
@@ -654,18 +726,31 @@
                     scene.remove(cameraBox);
                 }
             }
+            if (lensBox) {
+                if (lensBox.parent) {
+                    lensBox.parent.remove(lensBox);
+                } else {
+                    scene.remove(lensBox);
+                }
+            }
             
             const { innerLength, innerHeight, innerWidth } = calculateInnerDimensions();
             
-            // Check collisions for each face
+            // Calculate total assembly length when lens is attached
+            const totalAssemblyWidth = cameraWidth + (showLens ? lensLength : 0);
+            
+            // Check collisions for camera faces
             const collisions = {
-                front: (cameraWidth/2) >= (innerWidth/2),
-                back: (cameraWidth/2) >= (innerWidth/2),
+                front: (totalAssemblyWidth/2) >= (innerWidth/2),
+                back: (totalAssemblyWidth/2) >= (innerWidth/2),
                 left: (cameraLength/2) >= (innerLength/2),
                 right: (cameraLength/2) >= (innerLength/2),
                 top: (cameraHeight/2) >= (innerHeight/2),
                 bottom: (cameraHeight/2) >= (innerHeight/2)
             };
+            
+            // Check lens collision
+            const lensCollision = showLens && lensLength > 0 && (totalAssemblyWidth/2 >= innerWidth/2);
             
             // Create camera with individual face materials
             const cameraGeometry = new THREE.BoxGeometry(cameraLength, cameraHeight, cameraWidth);
@@ -692,14 +777,74 @@
             const wireframe = new THREE.LineSegments(edges, lineMaterial);
             cameraBox.add(wireframe);
             
-            // Position at center (relative to parent)
-            cameraBox.position.set(0, 0, 0);
+            // Calculate camera position to center the entire assembly (camera + lens)
+            // When lens is attached, shift camera back by half the lens length
+            // so the center of the entire assembly is at origin
+            let cameraOffsetZ = 0;
+            if (showLens && lensLength > 0) {
+                cameraOffsetZ = -lensLength / 2;
+            }
+            
+            // Position camera (relative to parent)
+            cameraBox.position.set(0, 0, cameraOffsetZ);
             
             // Add camera as child of inner box so they rotate together
             innerBox.add(cameraBox);
             
+            // Create lens if enabled
+            if (showLens) {
+                createLens(lensCollision, cameraOffsetZ);
+            }
+            
             // Update clearance measurements
             updateClearanceMeasurements();
+        }
+        
+        function createLens(isColliding, cameraOffsetZ) {
+            if (lensLength === 0) {
+                // Create a thin ring/circle flush with camera face when length is 0
+                const lensRadius = 1.15; // Fixed radius in inches (2.30" diameter)
+                const ringGeometry = new THREE.RingGeometry(lensRadius * 0.8, lensRadius, 16);
+                
+                const ringMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x00ff00,
+                    side: THREE.DoubleSide
+                });
+                
+                lensBox = new THREE.Mesh(ringGeometry, ringMaterial);
+                
+                // Position ring at front face of camera (considering camera's new offset position)
+                lensBox.position.set(0, 0, cameraWidth/2);
+            } else {
+                // Create lens cylinder with actual length
+                const lensRadius = 1.15; // Fixed radius in inches (2.30" diameter)
+                const lensGeometry = new THREE.CylinderGeometry(lensRadius, lensRadius, lensLength, 16);
+                
+                // Rotate lens to point forward (along Z-axis, which is the front direction)
+                lensGeometry.rotateX(Math.PI / 2);
+                
+                const lensMaterial = new THREE.MeshLambertMaterial({ 
+                    color: isColliding ? 0xff0000 : 0x000000 
+                });
+                
+                lensBox = new THREE.Mesh(lensGeometry, lensMaterial);
+                
+                // Add wireframe edges
+                const edges = new THREE.EdgesGeometry(lensGeometry);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: isColliding ? 0xff0000 : 0x00ff00, 
+                    linewidth: 2 
+                });
+                const wireframe = new THREE.LineSegments(edges, lineMaterial);
+                lensBox.add(wireframe);
+                
+                // Position lens extending from front face of camera
+                // The lens center should be at: camera front face + lens length/2
+                lensBox.position.set(0, 0, cameraWidth/2 + lensLength/2);
+            }
+            
+            // Add lens as child of camera so they move together
+            cameraBox.add(lensBox);
         }
 
         function updateDimensions() {
@@ -711,7 +856,18 @@
             // Update camera dimensions
             document.getElementById('camera-length-value').textContent = formatDimension(cameraLength);
             document.getElementById('camera-height-value').textContent = formatDimension(cameraHeight);
+            
+            // Camera width shows just the camera body width (not including lens)
             document.getElementById('camera-width-value').textContent = formatDimension(cameraWidth);
+            
+            // Update lens dimensions - show actual length
+            document.getElementById('lens-length-value').textContent = formatDimension(lensLength);
+            
+            // Update total assembly width when lens is shown
+            if (showLens) {
+                const totalWidth = cameraWidth + lensLength;
+                document.getElementById('total-width-value').textContent = formatDimension(totalWidth);
+            }
         }
 
         function setupControls() {
@@ -770,6 +926,7 @@
                 updateSliderRanges();
                 updateDimensions();
                 updateClearanceMeasurements();
+                updateResetButtonText();
             });
             
             // Camera checkbox
@@ -787,8 +944,48 @@
                         }
                         cameraBox = null;
                     }
+                    if (lensBox) {
+                        if (lensBox.parent) {
+                            lensBox.parent.remove(lensBox);
+                        } else {
+                            scene.remove(lensBox);
+                        }
+                        lensBox = null;
+                    }
                     cameraControls.style.display = 'none';
                 }
+                updateClearanceMeasurements();
+            });
+            
+            // Lens checkbox
+            document.getElementById('show-lens').addEventListener('change', (e) => {
+                showLens = e.target.checked;
+                const lensControlGroup = document.getElementById('lens-control-group');
+                const totalWidthGroup = document.getElementById('total-width-group');
+                const showCameraCheckbox = document.getElementById('show-camera');
+                
+                if (showLens) {
+                    lensControlGroup.style.display = 'block';
+                    totalWidthGroup.style.display = 'block';
+                    if (showCameraCheckbox.checked) {
+                        createCameraBox(); // Recreate to include lens
+                    }
+                } else {
+                    lensControlGroup.style.display = 'none';
+                    totalWidthGroup.style.display = 'none';
+                    if (lensBox) {
+                        if (lensBox.parent) {
+                            lensBox.parent.remove(lensBox);
+                        } else {
+                            scene.remove(lensBox);
+                        }
+                        lensBox = null;
+                    }
+                    if (showCameraCheckbox.checked) {
+                        createCameraBox(); // Recreate without lens
+                    }
+                }
+                updateDimensions();
                 updateClearanceMeasurements();
             });
             
@@ -823,16 +1020,42 @@
                 if (cameraBox) createCameraBox();
             });
             
-            // Reset camera button
+            // Lens dimension slider
+            document.getElementById('lens-length-slider').addEventListener('input', (e) => {
+                if (useMetric) {
+                    lensLength = cmToInches(parseFloat(e.target.value));
+                } else {
+                    lensLength = parseFloat(e.target.value);
+                }
+                updateDimensions();
+                updateClearanceMeasurements();
+                // Always recreate the camera when lens length changes
+                if (cameraBox) createCameraBox();
+            });
+            
+            // Pause movement checkbox
+            document.getElementById('pause-movement').addEventListener('change', (e) => {
+                pauseMovement = e.target.checked;
+            });
             document.getElementById('reset-camera-btn').addEventListener('click', () => {
                 cameraLength = DEFAULT_CAMERA_LENGTH;
                 cameraHeight = DEFAULT_CAMERA_HEIGHT;
                 cameraWidth = DEFAULT_CAMERA_WIDTH;
                 
-                // Update sliders
-                document.getElementById('camera-length-slider').value = DEFAULT_CAMERA_LENGTH;
-                document.getElementById('camera-height-slider').value = DEFAULT_CAMERA_HEIGHT;
-                document.getElementById('camera-width-slider').value = DEFAULT_CAMERA_WIDTH;
+                // Update sliders based on current unit mode
+                const cameraLengthSlider = document.getElementById('camera-length-slider');
+                const cameraHeightSlider = document.getElementById('camera-height-slider');
+                const cameraWidthSlider = document.getElementById('camera-width-slider');
+                
+                if (useMetric) {
+                    cameraLengthSlider.value = inchesToCm(DEFAULT_CAMERA_LENGTH).toFixed(1);
+                    cameraHeightSlider.value = inchesToCm(DEFAULT_CAMERA_HEIGHT).toFixed(1);
+                    cameraWidthSlider.value = inchesToCm(DEFAULT_CAMERA_WIDTH).toFixed(1);
+                } else {
+                    cameraLengthSlider.value = DEFAULT_CAMERA_LENGTH.toFixed(2);
+                    cameraHeightSlider.value = DEFAULT_CAMERA_HEIGHT.toFixed(2);
+                    cameraWidthSlider.value = DEFAULT_CAMERA_WIDTH.toFixed(2);
+                }
                 
                 // Update displays and recreate camera
                 updateDimensions();
@@ -879,7 +1102,7 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            if (!mouseDown) {
+            if (!mouseDown && !pauseMovement) {
                 if (innerBox) {
                     innerBox.rotation.y += 0.005;
                 }
@@ -902,7 +1125,10 @@
         });
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            updateResetButtonText();
+        });
     </script>
 </body>
 </html>
