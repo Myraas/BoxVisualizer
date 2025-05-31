@@ -5,7 +5,7 @@ A comprehensive 3D tool for visualizing custom protective cases and camera bag d
 ## Live Demo
 **[Try it here: boxvisualizer.pages.dev](https://boxvisualizer.pages.dev/)**
 
-<img src="screenshot.png" alt="Box Visualizer Screenshot" width="66%">
+<img src="screenshot.png" alt="Box Visualizer Screenshot" width="33%">
 
 ## What it does
 
